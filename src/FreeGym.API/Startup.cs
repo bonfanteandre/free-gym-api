@@ -13,6 +13,8 @@ using FreeGym.Data.UnitOfWork;
 using FreeGym.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
+using FreeGym.API.Middlewares;
+using System.Linq;
 
 namespace FreeGym.API
 {
@@ -50,6 +52,20 @@ namespace FreeGym.API
                 options.ReportApiVersions = true;
                 options.ApiVersionReader = new HeaderApiVersionReader("free-gym-api-version");
             });
+
+            services.Configure<ApiBehaviorOptions>(options =>
+            {
+                options.InvalidModelStateResponseFactory = actionContext =>
+                {
+                    var errors = actionContext.ModelState
+                        .Where(e => e.Value.Errors.Count > 0)
+                        .SelectMany(e => e.Value.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToArray();
+
+                    return new BadRequestObjectResult(errors);
+                };
+            });
             
             services.AddSwaggerGen(c =>
             {
@@ -60,9 +76,12 @@ namespace FreeGym.API
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.UseMiddleware<ExceptionMiddleware>();
+
+            app.UseStatusCodePagesWithRedirects("/errors/{0}");
+
             if (env.IsDevelopment())
             {
-                app.UseDeveloperExceptionPage();
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "FreeGym.API v1"));
             }
