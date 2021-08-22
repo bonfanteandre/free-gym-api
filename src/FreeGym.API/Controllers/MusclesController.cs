@@ -40,7 +40,6 @@ namespace FreeGym.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPagedAsync([FromQuery] int skip = 0, [FromQuery] int take = 10, [FromQuery] string search = "")
         {
-            throw new System.Exception();
             var pagedMuscles = await _musclesService.GetPagedAsync(skip, take, search);
 
             if (pagedMuscles.Data.Count() == 0)
