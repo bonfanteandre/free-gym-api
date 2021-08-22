@@ -3,6 +3,7 @@ using FreeGym.API.Dtos;
 using FreeGym.Core.Entities;
 using FreeGym.Core.Results;
 using FreeGym.Core.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,7 @@ namespace FreeGym.API.Controllers
     [ApiController]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/muscles")]
+    [Authorize]
     public class MusclesController : ControllerBase
     {
         private readonly IMapper _mapper;

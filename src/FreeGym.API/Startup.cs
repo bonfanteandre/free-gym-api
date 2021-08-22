@@ -15,6 +15,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using FreeGym.API.Middlewares;
 using System.Linq;
+using Microsoft.AspNetCore.Identity;
+using FreeGym.Core.Entities;
+using System.Text;
+using FreeGym.Data.Security;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 namespace FreeGym.API
 {
@@ -35,6 +41,40 @@ namespace FreeGym.API
                 options.UseSqlServer(_configuration.GetConnectionString("FreeGymConnection"));
             });
 
+            services.AddDbContext<IdentityDbContext>(options =>
+            {
+                options.UseSqlServer(_configuration.GetConnectionString("FreeGymConnection"));
+            });
+
+            services.AddIdentity<IdentityUser, IdentityRole>()
+                .AddEntityFrameworkStores<IdentityDbContext>()
+                .AddDefaultTokenProviders();
+
+            var jwtOptionsSection = _configuration.GetSection("JwtOptions");
+            services.Configure<JwtOptions>(jwtOptionsSection);
+
+            var jwtOptions = jwtOptionsSection.Get<JwtOptions>();
+            var key = Encoding.ASCII.GetBytes(jwtOptions.Secret);
+
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(key),
+                        ValidateIssuer = true,
+                        ValidIssuer = jwtOptions.Issuer,
+                        ValidateAudience = false
+                    };
+                });
+
+            services.AddTransient<TokenService>();
+
             services.AddAutoMapper(typeof(Startup));
 
             services.AddTransient<IMusclesRepository, MusclesRepository>();
@@ -52,20 +92,6 @@ namespace FreeGym.API
                 options.ReportApiVersions = true;
                 options.ApiVersionReader = new HeaderApiVersionReader("free-gym-api-version");
             });
-
-            services.Configure<ApiBehaviorOptions>(options =>
-            {
-                options.InvalidModelStateResponseFactory = actionContext =>
-                {
-                    var errors = actionContext.ModelState
-                        .Where(e => e.Value.Errors.Count > 0)
-                        .SelectMany(e => e.Value.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToArray();
-
-                    return new BadRequestObjectResult(errors);
-                };
-            });
             
             services.AddSwaggerGen(c =>
             {
@@ -78,8 +104,6 @@ namespace FreeGym.API
         {
             app.UseMiddleware<ExceptionMiddleware>();
 
-            app.UseStatusCodePagesWithRedirects("/errors/{0}");
-
             if (env.IsDevelopment())
             {
                 app.UseSwagger();
@@ -90,6 +114,7 @@ namespace FreeGym.API
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
