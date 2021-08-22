@@ -6,6 +6,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
+using FreeGym.Data.Repositories;
+using FreeGym.Core.Interfaces.Repositories;
+using FreeGym.Core.Interfaces.UnitOfWork;
+using FreeGym.Data.UnitOfWork;
+using FreeGym.Core.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Versioning;
 
 namespace FreeGym.API
 {
@@ -26,7 +33,23 @@ namespace FreeGym.API
                 options.UseSqlServer(_configuration.GetConnectionString("FreeGymConnection"));
             });
 
+            services.AddAutoMapper(typeof(Startup));
+
+            services.AddTransient<IMusclesRepository, MusclesRepository>();
+
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            services.AddTransient<MusclesService>();
+
             services.AddControllers();
+
+            services.AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.ReportApiVersions = true;
+                options.ApiVersionReader = new HeaderApiVersionReader("free-gym-api-version");
+            });
             
             services.AddSwaggerGen(c =>
             {
