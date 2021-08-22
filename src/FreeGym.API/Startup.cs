@@ -21,6 +21,7 @@ using System.Text;
 using FreeGym.Data.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using FreeGym.API.Extensions;
 
 namespace FreeGym.API
 {
@@ -36,67 +37,12 @@ namespace FreeGym.API
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<FreeGymContext>(options =>
-            {
-                options.UseSqlServer(_configuration.GetConnectionString("FreeGymConnection"));
-            });
-
-            services.AddDbContext<IdentityDbContext>(options =>
-            {
-                options.UseSqlServer(_configuration.GetConnectionString("FreeGymConnection"));
-            });
-
-            services.AddIdentity<IdentityUser, IdentityRole>()
-                .AddEntityFrameworkStores<IdentityDbContext>()
-                .AddDefaultTokenProviders();
-
-            var jwtOptionsSection = _configuration.GetSection("JwtOptions");
-            services.Configure<JwtOptions>(jwtOptionsSection);
-
-            var jwtOptions = jwtOptionsSection.Get<JwtOptions>();
-            var key = Encoding.ASCII.GetBytes(jwtOptions.Secret);
-
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-                .AddJwtBearer(options =>
-                {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(key),
-                        ValidateIssuer = true,
-                        ValidIssuer = jwtOptions.Issuer,
-                        ValidateAudience = false
-                    };
-                });
-
-            services.AddTransient<TokenService>();
-
             services.AddAutoMapper(typeof(Startup));
-
-            services.AddTransient<IMusclesRepository, MusclesRepository>();
-
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-            services.AddTransient<MusclesService>();
-
+            services.AddIdentityServices(_configuration);
+            services.AddFreeGymServices(_configuration);
+            services.AddVersioning();
             services.AddControllers();
-
-            services.AddApiVersioning(options =>
-            {
-                options.DefaultApiVersion = new ApiVersion(1, 0);
-                options.AssumeDefaultVersionWhenUnspecified = true;
-                options.ReportApiVersions = true;
-                options.ApiVersionReader = new HeaderApiVersionReader("free-gym-api-version");
-            });
-            
-            services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "FreeGym.API", Version = "v1" });
-            });
+            services.AddSwagger();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
